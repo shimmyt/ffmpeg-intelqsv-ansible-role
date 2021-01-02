@@ -1,0 +1,75 @@
+---
+vaapi_src: "{{ src_base }}/vaapi"
+ffmpeg_build: "{{ src_base }}/ffmpeg_build"
+ffmpeg_src: "{{ src_base }}//ffmpeg_sources"
+vaapi_workspace: "{{ vaapi_src }}/workspace"
+
+libva_repo: https://github.com/intel/libva
+libva_src: "{{ vaapi_src }}/libva"
+
+gmmlib_repo: https://github.com/intel/gmmlib
+gmmlib_src: "{{ vaapi_workspace }}/gmmlib"
+gmmlib_build_src: "{{ vaapi_workspace }}/build/"
+
+mediadriver_repo: https://github.com/intel/media-driver
+mediadriver_src: "{{ vaapi_workspace }}/media-driver"
+mediadriver_build_src: "{{ vaapi_workspace }}/build_media"
+
+vaapiutils_repo: https://github.com/intel/libva-utils
+vaapiutils_src: "{{ vaapi_src }}/libva-utils"
+
+mediasdk_repo: https://github.com/Intel-Media-SDK/MediaSDK
+mediasdk_src: "{{ vaapi_src }}/msdk"
+mediasdk_build_src: "{{ vaapi_workspace }}/build_mediasdk"
+
+nasm: nasm-2.14.02
+nasm_dl: "https://www.nasm.us/pub/nasm/releasebuilds/2.14.02/{{ nasm }}.tar.gz"
+
+libx264_repo: https://code.videolan.org/videolan/x264.git
+libx264_src: "{{ ffmpeg_src }}/x264"
+
+libx265_repo: https://bitbucket.org/multicoreware/x265_git
+libx265_src: "{{ ffmpeg_src }}/x265"
+
+libfdkaac_repo: https://github.com/mstorsjo/fdk-aac
+libfdkaac_src: "{{ ffmpeg_src }}/fdk-aac"
+
+libvpx_repo: https://github.com/webmproject/libvpx
+libvpx_src: "{{ ffmpeg_src }}/libvpx"
+
+libvorbis: libvorbis-1.3.6
+libvorbis_dl: http://downloads.xiph.org/releases/vorbis/{{ libvorbis }}.tar.xz
+
+ffmpeg_code_repo: https://github.com/FFmpeg/FFmpeg
+ffmpeg_code_src: "{{ ffmpeg_src }}/ffmpeg"
+
+ffmpeg_pkgs: 
+ - autoconf 
+ - automake 
+ - build-essential 
+ - libass-dev 
+ - libtool 
+ - pkg-config 
+ - texinfo 
+ - zlib1g-dev 
+ - libva-dev 
+ - cmake 
+ - mercurial 
+ - libdrm-dev 
+ - libvorbis-dev 
+ - libogg-dev 
+ - git 
+ - libx11-dev 
+ - libperl-dev 
+ - libpciaccess-dev 
+ - libpciaccess0 
+ - xorg-dev 
+ - intel-gpu-tools 
+ - libwayland-dev 
+ - xutils-dev 
+ - libssl-dev
+ - libxcb-dri3-dev
+ - libx11-xcb-dev
+ - libxcb-present-dev
+ - opencl-headers
+ - ocl-icd-opencl-dev

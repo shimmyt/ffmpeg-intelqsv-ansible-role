@@ -1,0 +1,424 @@
+---
+- name: install required packages
+  apt:
+    pkg: "{{ ffmpeg_pkgs }}"
+    update_cache: yes
+
+- name: Oibaf PPA, needed to install the latest development headers for libva
+  apt_repository:
+    repo: ppa:oibaf/graphics-drivers
+    state: present
+
+- name: Update packages
+  apt:
+    name: "*"
+    state: latest
+
+- name: Create a symbolic link
+  file:
+    src: /usr/lib/x86_64-linux-gnu/libGLX_mesa.so.0
+    dest: /usr/lib/x86_64-linux-gnu/libGLX_mesa.so
+    state: link
+
+- name: Create build folders
+  file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - "{{vaapi_src}}"
+    - "{{ffmpeg_build}}"
+    - "{{ffmpeg_src}}"
+
+- name: grab libva
+  git:
+    repo: "{{ libva_repo }}"
+    dest: "{{ libva_src }}"
+    clone: yes
+
+- name: configure libva
+  command: ./autogen.sh --prefix=/usr --libdir=/usr/lib/x86_64-linux-gnu
+  args:
+    chdir: "{{ libva_src }}"
+
+- name: Build libva target with extra arguments
+  community.general.make:
+    chdir: "{{ libva_src }}"
+    params:
+      NUM_THREADS: 4
+
+- name: install libva
+  community.general.make:
+    chdir: "{{ libva_src }}"
+    target: install
+    params:
+      NUM_THREADS: 4
+
+- name: register libraries
+  command: /usr/sbin/ldconfig
+  args:
+    chdir: "{{ libva_src }}"
+
+- name: Create workspace folders
+  file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - "{{ gmmlib_build_src }}"
+    - "{{ mediadriver_build_src }}"
+    - "{{ mediasdk_build_src }}"
+
+- name: grab gmmlib
+  git:
+    repo: "{{ gmmlib_repo }}"
+    dest: "{{ gmmlib_src }}"
+    clone: yes
+    force: yes
+
+- name: configure gmmlib
+  command: cmake -DCMAKE_BUILD_TYPE= Release "{{ gmmlib_src }}"
+  args:
+    chdir: "{{ gmmlib_build_src }}"
+
+- name: Build gmmlib target with extra arguments
+  community.general.make:
+    chdir: "{{ gmmlib_build_src }}"
+    params:
+      NUM_THREADS: 4
+
+- name: install gmmlib
+  community.general.make:
+    chdir: "{{ gmmlib_build_src }}"
+    target: install
+    params:
+      NUM_THREADS: 4
+
+- name: grab media-driver
+  git:
+    repo: "{{ mediadriver_repo }}"
+    dest: "{{ mediadriver_src }}"
+    clone: yes
+    track_submodules: yes
+
+- name: configure media-driver
+  command: cmake "{{ mediadriver_src }}" -DMEDIA_VERSION="2.0.0" -DBS_DIR_GMMLIB="{{ gmmlib_src }}"/Source/GmmLib/ -DBS_DIR_COMMON="{{ gmmlib_src }}"/Source/Common/ -DBS_DIR_INC="{{ gmmlib_src }}"/Source/inc/ -DBS_DIR_MEDIA="{{ mediadriver_src }}" -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_LIBDIR=/usr/lib/x86_64-linux-gnu -DINSTALL_DRIVER_SYSCONF=OFF -DLIBVA_DRIVERS_PATH=/usr/lib/x86_64-linux-gnu/dri
+  args:
+    chdir: "{{ mediadriver_build_src }}"
+
+- name: Build media-driver target with extra arguments
+  community.general.make:
+    chdir: "{{ mediadriver_build_src }}"
+    params:
+      NUM_THREADS: 4
+
+- name: install media-driver
+  community.general.make:
+    chdir: "{{ mediadriver_build_src }}"
+    target: install
+    params:
+      NUM_THREADS: 4
+
+- name: grab libva-utils
+  git:
+    repo: "{{ vaapiutils_repo }}"
+    dest: "{{ vaapiutils_src }}"
+    clone: yes
+    track_submodules: yes
+
+- name: configure libva-utils
+  command: ./autogen.sh --prefix=/usr --libdir=/usr/lib/x86_64-linux-gnu
+  args:
+    chdir: "{{ vaapiutils_src }}"
+
+- name: Build libva-utils target with extra arguments
+  community.general.make:
+    chdir: "{{ vaapiutils_src }}"
+    params:
+      NUM_THREADS: 4
+
+- name: install libva-utils
+  community.general.make:
+    chdir: "{{ vaapiutils_src }}"
+    target: install
+    params:
+      NUM_THREADS: 4
+
+- name: grab mediasdk-utils
+  git:
+    repo: "{{ mediasdk_repo }}"
+    dest: "{{ mediasdk_src }}"
+    clone: yes
+    track_submodules: yes
+
+- name: configure mediasdk
+  command: cmake -DCMAKE_BUILD_TYPE=Release -DENABLE_WAYLAND=ON -DENABLE_X11_DRI3=ON "{{ mediasdk_src }}"
+  args:
+    chdir: "{{ mediasdk_build_src }}"
+
+- name: Build mediasdk target with extra arguments
+  community.general.make:
+    chdir: "{{ mediasdk_build_src }}"
+    params:
+      NUM_THREADS: 4
+
+- name: install mediasdk
+  community.general.make:
+    chdir: "{{ mediasdk_build_src }}"
+    target: install
+    params:
+      NUM_THREADS: 4
+
+- name: Copy imsdk
+  copy:
+    src: files/imsdk.conf
+    dest: /etc/ld.so.conf.d/imsdk.conf
+
+- name: register libraries
+  command: /usr/sbin/ldconfig
+  args:
+    chdir: "{{ mediasdk_build_src }}"
+
+- name: download nasm
+  unarchive:
+    src: "{{ nasm_dl }}"
+    dest: "{{ ffmpeg_src }}"
+    remote_src: yes
+
+- name: configure nasm
+  command: './configure --prefix="{{ ffmpeg_build }}" --bindir="{{ bin }}"'
+  args:
+    chdir: "{{ ffmpeg_src }}/{{ nasm }}"
+
+- name: Build nasm
+  community.general.make:
+    chdir: "{{ ffmpeg_src }}/{{ nasm }}"
+    params:
+      NUM_THREADS: 4
+
+- name: install nasm
+  community.general.make:
+    chdir: "{{ ffmpeg_src }}/{{ nasm }}"
+    target: install
+    params:
+      NUM_THREADS: 4
+
+- name: distclean nasm
+  community.general.make:
+    chdir: "{{ ffmpeg_src }}/{{ nasm }}"
+    target: distclean
+    params:
+      NUM_THREADS: 4
+
+- name: grab libx264
+  git:
+    repo: "{{ libx264_repo }}"
+    dest: "{{ libx264_src }}"
+    clone: yes
+    track_submodules: yes
+
+- name: configure libx264
+  command: './configure --prefix="{{ ffmpeg_build }}" --bindir="{{ bin }}" --enable-static --disable-opencl --bit-depth=all --enable-pic'
+  args:
+    chdir: "{{ libx264_src }}"
+
+- name: Build libx264
+  community.general.make:
+    chdir: "{{ libx264_src }}"
+    params:
+      NUM_THREADS: 4
+
+- name: install libx264
+  community.general.make:
+    chdir: "{{ libx264_src }}"
+    target: install
+    params:
+      NUM_THREADS: 4
+
+- name: distclean libx264
+  community.general.make:
+    chdir: "{{ libx264_src }}"
+    target: distclean
+    params:
+      NUM_THREADS: 4
+
+- name: grab libx265
+  git:
+    repo: "{{ libx265_repo }}"
+    dest: "{{ libx265_src }}"
+    clone: yes
+
+- name: configure libx265
+  command: cmake -G "Unix Makefiles" -DCMAKE_INSTALL_PREFIX="{{ ffmpeg_build }}" -DENABLE_SHARED:bool=off ../../source
+  args:
+    chdir: "{{ libx265_src }}/build/linux"
+
+- name: Build libx265
+  community.general.make:
+    chdir: "{{ libx265_src }}/build/linux"
+    params:
+      NUM_THREADS: 4
+
+- name: install libx265
+  community.general.make:
+    chdir: "{{ libx265_src }}/build/linux"
+    target: install
+    params:
+      NUM_THREADS: 4
+
+- name: clean libx265
+  community.general.make:
+    chdir: "{{ libx265_src }}/build/linux"
+    target: clean
+    params:
+      NUM_THREADS: 4
+
+- name: grab libfdk-aac
+  git:
+    repo: "{{ libfdkaac_repo }}"
+    dest: "{{ libfdkaac_src }}"
+    clone: yes
+
+- name: configure libfdk-aac
+  command: autoreconf -fiv
+  args:
+    chdir: "{{ libfdkaac_src }}"
+
+- name: configure libfdk-aac
+  command: ./configure --prefix="{{ ffmpeg_build }}" --disable-shared
+  args:
+    chdir: "{{ libfdkaac_src }}"
+
+- name: Build libfdk-aac
+  community.general.make:
+    chdir: "{{ libfdkaac_src }}"
+    params:
+      NUM_THREADS: 4
+
+- name: install libfdk-aac
+  community.general.make:
+    chdir: "{{ libfdkaac_src }}"
+    target: install
+    params:
+      NUM_THREADS: 4
+
+- name: clean libfdk-aac
+  community.general.make:
+    chdir: "{{ libfdkaac_src }}"
+    target: clean
+    params:
+      NUM_THREADS: 4
+
+- name: grab libvpx
+  git:
+    repo: "{{ libvpx_repo }}"
+    dest: "{{ libvpx_src }}"
+    clone: yes
+
+- name: configure libvpx
+  command: ./configure --prefix="{{ ffmpeg_build }}" --enable-runtime-cpu-detect --enable-vp9 --enable-vp8 --enable-postproc --enable-vp9-postproc --enable-multi-res-encoding --enable-webm-io --enable-better-hw-compatibility --enable-vp9-highbitdepth --enable-onthefly-bitpacking --enable-realtime-only --cpu=native --as=nasm 
+  args:
+    chdir: "{{ libvpx_src }}"
+
+- name: Build libvpx
+  community.general.make:
+    chdir: "{{ libvpx_src }}"
+    params:
+      NUM_THREADS: 4
+
+- name: install libvpx
+  community.general.make:
+    chdir: "{{ libvpx_src }}"
+    target: install
+    params:
+      NUM_THREADS: 4
+
+- name: clean libvpx
+  community.general.make:
+    chdir: "{{ libvpx_src }}"
+    target: clean
+    params:
+      NUM_THREADS: 4
+
+- name: distclean libvpx
+  community.general.make:
+    chdir: "{{ libvpx_src }}"
+    target: distclean
+    params:
+      NUM_THREADS: 4
+
+- name: download libvorbis
+  unarchive:
+    src: "{{ libvorbis_dl }}"
+    dest: "{{ ffmpeg_src }}"
+    remote_src: yes
+
+- name: configure libvorbis
+  command: ./configure --prefix="{{ ffmpeg_build }}" --enable-static 
+  args:
+    chdir: "{{ ffmpeg_src }}/{{ libvorbis }}"
+
+- name: Build libvorbis
+  community.general.make:
+    chdir: "{{ ffmpeg_src }}/{{ libvorbis }}"
+    params:
+      NUM_THREADS: 4
+
+- name: install libvorbis
+  community.general.make:
+    chdir: "{{ ffmpeg_src }}/{{ libvorbis }}"
+    target: install
+    params:
+      NUM_THREADS: 4
+
+- name: clean libvorbis
+  community.general.make:
+    chdir: "{{ ffmpeg_src }}/{{ libvorbis }}"
+    target: clean
+    params:
+      NUM_THREADS: 4
+
+- name: distclean libvorbis
+  community.general.make:
+    chdir: "{{ ffmpeg_src }}/{{ libvorbis }}"
+    target: distclean
+    params:
+      NUM_THREADS: 4
+
+- name: grab ffmpeg
+  git:
+    repo: "{{ ffmpeg_code_repo }}"
+    dest: "{{ ffmpeg_code_src }}"
+    clone: yes
+
+- name: configure ffmpeg
+  command: ./configure --pkg-config-flags="--static" --prefix="{{ bin }}" --bindir="{{ bin }}" --extra-cflags="-I{{ bin }}/include" --extra-ldflags="-L{{ bin }}/lib" --extra-cflags="-I/opt/intel/mediasdk/include" --extra-ldflags="-L/opt/intel/mediasdk/lib" --extra-ldflags="-L/opt/intel/mediasdk/plugins" --enable-libmfx --enable-vaapi --enable-opencl --disable-debug --enable-libvorbis --enable-libvpx --enable-libdrm --enable-gpl --cpu=native --enable-libfdk-aac --enable-libx264 --enable-libx265 --enable-openssl --enable-pic --extra-libs="-lpthread -lm -lz -ldl" --enable-nonfree
+  args:
+    chdir: "{{ ffmpeg_code_src }}"
+  environment: 
+    PKG_CONFIG_PATH: "{{ ffmpeg_build }}/lib/pkgconfig:/opt/intel/mediasdk/lib/pkgconfig"
+
+- name: Build ffmpeg
+  community.general.make:
+    chdir: "{{ ffmpeg_code_src }}"
+    params:
+      NUM_THREADS: 4
+
+- name: install ffmpeg
+  community.general.make:
+    chdir: "{{ ffmpeg_code_src }}"
+    target: install
+    params:
+      NUM_THREADS: 4
+
+- name: clean ffmpeg
+  community.general.make:
+    chdir: "{{ ffmpeg_code_src }}"
+    target: clean
+    params:
+      NUM_THREADS: 4
+
+- name: distclean libvpx
+  community.general.make:
+    chdir: "{{ libvpx_src }}"
+    target: distclean
+    params:
+      NUM_THREADS: 4

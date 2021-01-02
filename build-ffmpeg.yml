@@ -1,0 +1,6 @@
+---
+- hosts:
+  - all
+  roles:
+    - ffmpeg-intelqsv
+  gather_facts: false
